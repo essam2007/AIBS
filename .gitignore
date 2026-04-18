@@ -23,6 +23,10 @@ yarn-error.log*
 # database
 prisma/*.db
 prisma/*.db-journal
+prisma/prisma/
+
+# typescript
+tsconfig.tsbuildinfo
 
 # uploads
 public/uploads/
