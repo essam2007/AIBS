@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  nameAr        String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("BROKER") // BROKER | BUYER | SELLER | ADMIN
+  phone         String?
+  whatsapp      String?
+  country       String    @default("AE")
+  city          String?
+  companyId     String?
+  isVerified    Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  kycStatus     String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company       Company?  @relation(fields: [companyId], references: [id])
+  listings      Listing[]
+  buyerDeals    Deal[]    @relation("BuyerDeals")
+  sellerDeals   Deal[]    @relation("SellerDeals")
+  brokerDeals   Deal[]    @relation("BrokerDeals")
+  sentMessages  Message[]
+  documents     Document[]
+  ratingsGiven  BrokerRating[] @relation("RaterUser")
+  ratingsRcvd   BrokerRating[] @relation("RatedUser")
+  notifications Notification[]
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Company {
+  id               String   @id @default(cuid())
+  name             String
+  nameAr           String?
+  registrationNo   String?
+  country          String
+  city             String?
+  address          String?
+  type             String   @default("BROKER") // BROKER | BUYER | SELLER | REFINERY | NOC
+  website          String?
+  logo             String?
+  isVerified       Boolean  @default(false)
+  verifiedAt       DateTime?
+  dmccMember       Boolean  @default(false)
+  description      String?
+  descriptionAr    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  users            User[]
+  listings         Listing[]
+}
+
+model Listing {
+  id              String   @id @default(cuid())
+  title           String
+  titleAr         String?
+  type            String   // CRUDE_OIL | FUEL_OIL | GASOIL | JET_A1 | LPG | BITUMEN | NAPHTHA
+  side            String   // BUY | SELL
+  status          String   @default("ACTIVE") // ACTIVE | UNDER_NEGOTIATION | CLOSED | EXPIRED
+
+  // Origin & Identity
+  origin          String   // Saudi Arabia | UAE | Kuwait | Iraq | Oman | Qatar | Russia | Iran
+  grade           String?  // Arab Light | Arab Medium | Basra Light | ESPO | etc.
+  refinery        String?
+
+  // Quantity & Logistics
+  quantity        Float    // in barrels
+  quantityUnit    String   @default("BBL")
+  minQuantity     Float?
+  incoterms       String   // FOB | CIF | CFR | DDP
+  loadingPort     String?
+  deliveryPort    String?
+  deliveryStart   DateTime?
+  deliveryEnd     DateTime?
+  vesselType      String?  // VLCC | Suezmax | Aframax
+
+  // Pricing
+  priceType       String   @default("NEGOTIABLE") // FIXED | PLATTS_PLUS | ARGUS_PLUS | NEGOTIABLE
+  priceValue      Float?
+  priceBasis      String?  // Platts Dated Brent +/- X
+  currency        String   @default("USD")
+
+  // Chemical Specifications
+  apiGravity      Float?   // degrees API
+  sulfurContent   Float?   // % weight
+  viscosity       Float?   // cSt at 50C
+  waterContent    Float?   // % vol
+  ashContent      Float?   // % weight
+  pourPoint       Float?   // C
+  flashPoint      Float?   // C
+  rvp             Float?   // Reid Vapor Pressure (psi)
+  h2sContent      Float?   // ppm
+  totalAcidNumber Float?   // TAN mg KOH/g
+  waxContent      Float?   // %
+  niContent       Float?   // Nickel ppm
+  vaContent       Float?   // Vanadium ppm
+
+  // Docs & Notes
+  description     String?
+  descriptionAr   String?
+  notes           String?
+  expiresAt       DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userId          String
+  companyId       String?
+  user            User     @relation(fields: [userId], references: [id])
+  company         Company? @relation(fields: [companyId], references: [id])
+  deals           Deal[]
+  documents       Document[]
+}
+
+model Deal {
+  id              String   @id @default(cuid())
+  listingId       String
+  buyerId         String
+  sellerId        String?
+  brokerId        String?
+  status          String   @default("INQUIRY") // INQUIRY | LOI_SENT | FCO_ISSUED | NEGOTIATION | SGS_PENDING | DLC_PENDING | CONTRACTED | CLOSED | FAILED
+
+  // Terms agreed
+  agreedQuantity  Float?
+  agreedPrice     Float?
+  agreedIncoterms String?
+  currency        String   @default("USD")
+  commissionPct   Float?   @default(0.05) // %
+  commissionAmt   Float?
+
+  // Key dates
+  loiDate         DateTime?
+  fcoDate         DateTime?
+  spaDate         DateTime?
+  closedAt        DateTime?
+
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  listing         Listing  @relation(fields: [listingId], references: [id])
+  buyer           User     @relation("BuyerDeals", fields: [buyerId], references: [id])
+  seller          User?    @relation("SellerDeals", fields: [sellerId], references: [id])
+  broker          User?    @relation("BrokerDeals", fields: [brokerId], references: [id])
+  messages        Message[]
+  documents       Document[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  dealId    String
+  senderId  String
+  content   String
+  type      String   @default("TEXT") // TEXT | DOCUMENT | STATUS_UPDATE | SYSTEM
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  deal      Deal     @relation(fields: [dealId], references: [id])
+  sender    User     @relation(fields: [senderId], references: [id])
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // SGS_REPORT | LOI | FCO | SPA | BILL_OF_LADING | COO | EXPORT_LICENSE | ASSAY | BCL | OTHER
+  url         String
+  size        Int?
+  mimeType    String?
+  isVerified  Boolean  @default(false)
+  verifiedAt  DateTime?
+  hash        String?  // SHA256 for integrity
+
+  userId      String
+  listingId   String?
+  dealId      String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  listing     Listing? @relation(fields: [listingId], references: [id])
+  deal        Deal?    @relation(fields: [dealId], references: [id])
+}
+
+model BrokerRating {
+  id          String   @id @default(cuid())
+  raterId     String
+  ratedUserId String
+  dealId      String?
+  score       Int      // 1-5
+  reliability Int      // 1-5
+  speed       Int      // 1-5
+  expertise   Int      // 1-5
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  rater       User     @relation("RaterUser", fields: [raterId], references: [id])
+  rated       User     @relation("RatedUser", fields: [ratedUserId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // NEW_DEAL | MESSAGE | DEAL_UPDATE | LISTING_MATCH | VERIFICATION
+  title     String
+  titleAr   String?
+  body      String
+  bodyAr    String?
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
