@@ -1,5 +1,8 @@
 import { NextRequest } from 'next/server'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 interface NewsItem {
   id: string
   title: string
@@ -116,13 +119,19 @@ export async function GET(req: NextRequest) {
 
   // If all feeds fail, return curated mock news
   if (all.length === 0) {
-    return Response.json({ articles: getMockNews(), updatedAt: new Date().toISOString() })
+    return Response.json(
+      { articles: getMockNews(), updatedAt: new Date().toISOString(), source: 'fallback' },
+      { headers: { 'Cache-Control': 's-maxage=120, stale-while-revalidate=300' } }
+    )
   }
 
   // Sort by date descending
   all.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
 
-  return Response.json({ articles: all.slice(0, 40), updatedAt: new Date().toISOString() })
+  return Response.json(
+    { articles: all.slice(0, 40), updatedAt: new Date().toISOString(), source: 'rss' },
+    { headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=600' } }
+  )
 }
 
 function getMockNews(): NewsItem[] {

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/market-data/route.ts": {
+      "maxDuration": 15
+    },
+    "app/api/chart-data/route.ts": {
+      "maxDuration": 15
+    },
+    "app/api/news/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}

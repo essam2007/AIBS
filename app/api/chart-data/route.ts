@@ -1,5 +1,34 @@
 import { NextRequest } from 'next/server'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+async function tryYahooChart(symbol: string, interval: string, range: string) {
+  const hosts = ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']
+  for (const host of hosts) {
+    try {
+      const url = `https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Safari/605.1.15',
+          'Accept': 'application/json,text/javascript,*/*;q=0.01',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': 'https://finance.yahoo.com/',
+        },
+        signal: AbortSignal.timeout(8000),
+        cache: 'no-store',
+      })
+      if (!res.ok) continue
+      const data = await res.json()
+      const result = data?.chart?.result?.[0]
+      if (result) return result
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const symbol = searchParams.get('symbol') ?? 'CL=F'
@@ -7,20 +36,7 @@ export async function GET(req: NextRequest) {
   const range = searchParams.get('range') ?? '6mo'
 
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-        'Referer': 'https://finance.yahoo.com',
-      },
-      next: { revalidate: 60 },
-    })
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-    const data = await res.json()
-    const result = data?.chart?.result?.[0]
+    const result = await tryYahooChart(symbol, interval, range)
     if (!result) throw new Error('No data')
 
     const timestamps: number[] = result.timestamp ?? []
@@ -47,15 +63,19 @@ export async function GET(req: NextRequest) {
       interval,
       range,
       candles,
+      source: 'yahoo',
       meta: {
         currency: result.meta?.currency,
         exchangeName: result.meta?.exchangeName,
         instrumentType: result.meta?.instrumentType,
       },
-    })
+    }, { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=300' } })
   } catch (err) {
     console.error('Chart data error:', err)
-    return Response.json({ symbol, interval, range, candles: generateMockCandles(symbol), meta: {} })
+    return Response.json(
+      { symbol, interval, range, candles: generateMockCandles(symbol), source: 'fallback', meta: {} },
+      { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' } }
+    )
   }
 }
 
