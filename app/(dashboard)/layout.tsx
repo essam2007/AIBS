@@ -6,16 +6,19 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   LayoutDashboard, ListOrdered, Handshake, Users,
-  FileText, User, Settings, LogOut, Bell, Menu, X,
-  ChevronRight, Shield,
+  FileText, User, LogOut, Bell, Menu, X,
+  ChevronRight, Shield, TrendingUp, Newspaper,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLangStore } from '@/lib/store'
 import { translate } from '@/lib/translations'
 import { LanguageToggle } from '@/components/shared/LanguageToggle'
+import AskTheDesk from '@/components/shared/AskTheDesk'
 
 const navItems = [
   { href: '/dashboard',   icon: LayoutDashboard, key: 'dashboard' },
+  { href: '/markets',     icon: TrendingUp,       key: 'markets',   label: 'Markets' },
+  { href: '/news',        icon: Newspaper,        key: 'news',      label: 'News' },
   { href: '/listings',    icon: ListOrdered,      key: 'listings' },
   { href: '/deals',       icon: Handshake,        key: 'deals' },
   { href: '/brokers',     icon: Users,            key: 'brokers' },
@@ -83,8 +86,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {navItems.map(({ href, icon: Icon, key }) => {
+          {navItems.map(({ href, icon: Icon, key, label: fixedLabel }) => {
             const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+            let displayLabel: string
+            try { displayLabel = fixedLabel ?? t(key) } catch { displayLabel = fixedLabel ?? key }
             return (
               <Link
                 key={href}
@@ -98,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
               >
                 <Icon size={18} className={active ? 'text-gold-400' : 'text-muted-foreground group-hover:text-foreground'} />
-                <span className="flex-1">{t(key)}</span>
+                <span className="flex-1">{displayLabel}</span>
                 {active && <ChevronRight size={14} className={cn('text-gold-500/60', lang === 'ar' && 'rotate-180')} />}
               </Link>
             )
@@ -168,6 +173,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+      <AskTheDesk />
     </div>
   )
 }
